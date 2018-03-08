@@ -77,35 +77,45 @@ namespace HtmlBase64Converter
             };
 
             // Default behavior
-            cla.HelpOption("-?|-h|--help");
-
-            var version = cla.Option("-v|--version", "Show version", CommandOptionType.NoValue);
-            var input = cla.Option("-i|--input", "Input file", CommandOptionType.SingleValue);
-            var output = cla.Option("-o|--output", "Output file", CommandOptionType.SingleValue);
-
-            cla.OnExecute(() =>
-            {
-                serviceProvider.GetService<Converter>().Start(input.Value(), output.Value());
-                return 0;
-            });
+            SetCommand(cla, serviceProvider, false);
 
             // backslide 専用
             cla.Command("backslide", command =>
             {
-                command.Description = "for backslide";
-                command.HelpOption("-?|-h|--help");
-
-                var bsInput = command.Option("-i|--input", "Input file", CommandOptionType.SingleValue);
-                var bsOutput = command.Option("-o|--output", "Output file", CommandOptionType.SingleValue);
-
-                command.OnExecute(() =>
-                {
-                    serviceProvider.GetService<Converter>().Start(bsInput.Value(), bsOutput.Value(), true);
-                    return 0;
-                });
+                cla.Description = "for backslide";
+                SetCommand(command, serviceProvider, true);
             });
-            
+
             return cla;
+        }
+
+        static void SetCommand(CommandLineApplication cla, IServiceProvider serviceProvider, bool backslide)
+        {
+            cla.HelpOption("-?|-h|--help");
+
+            var input = cla.Option("-i|--input", "Input file", CommandOptionType.SingleValue);
+            var output = cla.Option("-o|--output", "Output file", CommandOptionType.SingleValue);
+            var dir = cla.Option("-d|--directory", "Input directory", CommandOptionType.SingleValue);
+
+            cla.OnExecute(() =>
+            {
+                if (input.HasValue() && dir.HasValue())
+                {
+                    Console.WriteLine("-i と -d の両方を指定することはできません");
+                    return 0;
+                }
+
+                var converter = serviceProvider.GetService<Converter>();
+                if (dir.HasValue())
+                {
+                    converter.StartInDir(dir.Value(), backslide);
+                }
+                else
+                {
+                    converter.Start(input.Value(), output.Value(), backslide);
+                }
+                return 0;
+            });
         }
     }
 }

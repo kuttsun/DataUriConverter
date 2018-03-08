@@ -22,8 +22,20 @@ namespace HtmlBase64Converter
             base64 = new Base64("UTF-8");
         }
 
-        public void Start(string inputFile, string outputFile, bool replaceWithString = false)
+        public void StartInDir(string dir, bool replaceWithString)
         {
+            var files = Directory.GetFiles(dir, "*.html", SearchOption.AllDirectories);
+
+            foreach (var file in files)
+            {
+                Start(file, null, replaceWithString);
+            }
+        }
+
+        public void Start(string inputFile, string outputFile, bool replaceWithString)
+        {
+            logger.LogInformation($"[Input] {inputFile}");
+
             var doc = default(IHtmlDocument);
             var parser = new HtmlParser();
 
@@ -59,15 +71,15 @@ namespace HtmlBase64Converter
                 {
                     var bytes = File.ReadAllBytes(src);
                     item.Attributes["src"].Value = $"{GetImageData(src)}{base64.Encode(bytes)}";
-                    Console.WriteLine($"Complete: {src}");
+                    logger.LogInformation($"[Complete] {src}");
                 }
                 catch (DirectoryNotFoundException)
                 {
-                    Console.WriteLine($"Directory Not found: {src}");
+                    logger.LogError($"Directory Not found: {src}");
                 }
                 catch (FileNotFoundException)
                 {
-                    Console.WriteLine($"File Not found: {src}");
+                    logger.LogError($"File Not found: {src}");
                 }
             }
         }
@@ -85,14 +97,27 @@ namespace HtmlBase64Converter
         string MatchEvaluatorMethod(Match m)
         {
             var file = m.Groups[2].Value;
-            if (file.StartsWith("file://"))
+            string ret = "";
+
+            // 既に Base64 になっている場合は何もしない
+            if (file.StartsWith("data:image"))
             {
-               file= file.Remove(0,"file://".Length);
+                ret = file;
             }
-            var bytes = File.ReadAllBytes(file);
-            var ret = m.Groups[1].Value + GetImageData(file) + base64.Encode(bytes) + m.Groups[3].Value;
-            Console.WriteLine($"Complete: {file}");
-            return ret;
+            else
+            {
+
+                if (file.StartsWith("file://"))
+                {
+                    file = file.Remove(0, "file://".Length);
+                }
+
+                var bytes = File.ReadAllBytes(file);
+                ret = GetImageData(file) + base64.Encode(bytes);
+                logger.LogInformation($"[Complete] {file}");
+            }
+
+            return m.Groups[1].Value + ret + m.Groups[3].Value;
         }
 
         string GetImageData(string file)
@@ -103,9 +128,11 @@ namespace HtmlBase64Converter
                     return "data:image/png;base64,";
                 case ".jpg":
                     return "data:image/jpg;base64,";
+                case ".svg":
+                    return "data:image/svg;base64,";
             }
 
-            Console.WriteLine($"Unknown image:{file}");
+            logger.LogWarning($"Unknown image:{file}");
             return "";
         }
     }
