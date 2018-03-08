@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace HtmlBase64Converter
+namespace DataUriConverter
 {
     public class Base64
     {

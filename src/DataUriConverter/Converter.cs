@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 using AngleSharp.Dom.Html;
 using AngleSharp.Parser.Html;
 
-namespace HtmlBase64Converter
+namespace DataUriConverter
 {
     class Converter
     {

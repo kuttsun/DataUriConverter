@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.CommandLineUtils;
 
-namespace HtmlBase64Converter
+namespace DataUriConverter
 {
     class Program
     {
