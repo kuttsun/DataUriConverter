@@ -5,9 +5,6 @@ using System.Text.RegularExpressions;
 using System.IO;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.CommandLineUtils;
 
 using AngleSharp.Dom.Html;
 using AngleSharp.Parser.Html;
@@ -45,7 +42,7 @@ namespace HtmlBase64Converter
                 doc = parser.Parse(html);
             }
 
-            using (var fs = new FileStream("hoge.html", FileMode.Create))
+            using (var fs = new FileStream(outputFile ?? inputFile, FileMode.Create))
             using (var sw = new StreamWriter(fs))
             {
                 sw.Write(doc.DocumentElement.OuterHtml);
@@ -79,7 +76,7 @@ namespace HtmlBase64Converter
         {
             //var pattern = @".*<img.*src\s*=\s*[\""|\'](.*?)[\""|\'].*>.*";
             //var pattern = ".*<img src=\\\\\"(.*?)\\\\\" .*>.*";
-            var pattern = @".*<img src=\\""(.*?)\\"" .*>.*";
+            var pattern = @"(.*<img src=\\"")(.*?)(\\"" .*>.*)";
             var rx = new Regex(pattern);
             return rx.Replace(doc.DocumentElement.OuterHtml, MatchEvaluatorMethod);
         }
@@ -87,13 +84,13 @@ namespace HtmlBase64Converter
         // 正規表現で一致した値を加工して置換するためのメソッド
         string MatchEvaluatorMethod(Match m)
         {
-            var file = m.Groups[1].Value;
+            var file = m.Groups[2].Value;
             if (file.StartsWith("file://"))
             {
                file= file.Remove(0,"file://".Length);
             }
             var bytes = File.ReadAllBytes(file);
-            var ret = GetImageData(file) + base64.Encode(bytes);
+            var ret = m.Groups[1].Value + GetImageData(file) + base64.Encode(bytes) + m.Groups[3].Value;
             Console.WriteLine($"Complete: {file}");
             return ret;
         }
@@ -103,9 +100,9 @@ namespace HtmlBase64Converter
             switch (Path.GetExtension(file))
             {
                 case ".png":
-                    return "data:image/png;";
+                    return "data:image/png;base64,";
                 case ".jpg":
-                    return "data:image/jpg;";
+                    return "data:image/jpg;base64,";
             }
 
             Console.WriteLine($"Unknown image:{file}");

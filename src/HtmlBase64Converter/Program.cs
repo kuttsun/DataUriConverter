@@ -26,6 +26,8 @@ namespace HtmlBase64Converter
             IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
 
             CommandLine(serviceProvider).Execute(args);
+
+            Console.ReadKey();
         }
 
         private static void ConfigureServices(IServiceCollection services)
@@ -74,33 +76,35 @@ namespace HtmlBase64Converter
                 Name = Assembly.GetExecutingAssembly().GetName().Name,
             };
 
+            // Default behavior
             cla.HelpOption("-?|-h|--help");
 
             var version = cla.Option("-v|--version", "Show version", CommandOptionType.NoValue);
             var input = cla.Option("-i|--input", "Input file", CommandOptionType.SingleValue);
             var output = cla.Option("-o|--output", "Output file", CommandOptionType.SingleValue);
-            var dir = cla.Option("-d|--directory", "Input directory", CommandOptionType.SingleValue);
+
+            cla.OnExecute(() =>
+            {
+                serviceProvider.GetService<Converter>().Start(input.Value(), output.Value());
+                return 0;
+            });
 
             // backslide 専用
             cla.Command("backslide", command =>
             {
                 command.Description = "for backslide";
                 command.HelpOption("-?|-h|--help");
+
+                var bsInput = command.Option("-i|--input", "Input file", CommandOptionType.SingleValue);
+                var bsOutput = command.Option("-o|--output", "Output file", CommandOptionType.SingleValue);
+
                 command.OnExecute(() =>
                 {
-                    serviceProvider.GetService<Converter>().Start(input.Value(), output.Value(), true);
+                    serviceProvider.GetService<Converter>().Start(bsInput.Value(), bsOutput.Value(), true);
                     return 0;
                 });
             });
-
-            // Default behavior
-            cla.OnExecute(() =>
-            {
-                serviceProvider.GetService<Converter>().Start(input.Value(), output.Value());
-                Console.ReadKey();
-                return 0;
-            });
-
+            
             return cla;
         }
     }
