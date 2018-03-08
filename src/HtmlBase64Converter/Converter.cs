@@ -15,11 +15,13 @@ namespace HtmlBase64Converter
     {
         ILogger logger;
         Base64 base64;
+        HtmlParser parser;
 
         public Converter(ILogger<Converter> logger)
         {
             this.logger = logger;
             base64 = new Base64("UTF-8");
+            parser = new HtmlParser();
         }
 
         public void StartInDir(string dir, bool replaceWithString)
@@ -37,7 +39,6 @@ namespace HtmlBase64Converter
             logger.LogInformation($"[Input] {inputFile}");
 
             var doc = default(IHtmlDocument);
-            var parser = new HtmlParser();
 
             using (var fs = new FileStream(inputFile, FileMode.Open))
             {
@@ -69,9 +70,11 @@ namespace HtmlBase64Converter
 
                 try
                 {
-                    var bytes = File.ReadAllBytes(src);
-                    item.Attributes["src"].Value = $"{GetImageData(src)}{base64.Encode(bytes)}";
-                    logger.LogInformation($"[Complete] {src}");
+                    var data = GetDataUri(src);
+                    if (data != null)
+                    {
+                        item.Attributes["src"].Value = data;
+                    }
                 }
                 catch (DirectoryNotFoundException)
                 {
@@ -97,44 +100,71 @@ namespace HtmlBase64Converter
         string MatchEvaluatorMethod(Match m)
         {
             var file = m.Groups[2].Value;
-            string ret = "";
+            string ret = file;
 
-            // 既に Base64 になっている場合は何もしない
-            if (file.StartsWith("data:image"))
+            var data = GetDataUri(file);
+            if (data != null)
             {
-                ret = file;
-                logger.LogInformation($"[Skip] {file}");
-            }
-            else
-            {
-
-                if (file.StartsWith("file://"))
-                {
-                    file = file.Remove(0, "file://".Length);
-                }
-
-                var bytes = File.ReadAllBytes(file);
-                ret = GetImageData(file) + base64.Encode(bytes);
-                logger.LogInformation($"[Converterd] {file}");
+                ret = data;
             }
 
             return m.Groups[1].Value + ret + m.Groups[3].Value;
         }
 
-        string GetImageData(string file)
+        string GetDataUri(string file)
         {
+            // 既に Data URI になっている場合は何もしない
+            if (file.StartsWith("data:image"))
+            {
+                logger.LogInformation($"[Skip]");
+                return null;
+            }
+
+            if (file.StartsWith("file://"))
+            {
+                file = file.Remove(0, "file://".Length);
+            }
+
+            string header = "";
+            string content = "";
+
             switch (Path.GetExtension(file))
             {
                 case ".png":
-                    return "data:image/png;base64,";
+                    header = "data:image/png;base64,";
+                    content = base64.Encode(File.ReadAllBytes(file));
+                    break;
                 case ".jpg":
-                    return "data:image/jpg;base64,";
+                    header = "data:image/jpg;base64,";
+                    content = base64.Encode(File.ReadAllBytes(file));
+                    break;
                 case ".svg":
-                    return "data:image/svg;base64,";
+                    header = "data:image/svg+xml;base64,";
+                    content = ConvertSvg(file);
+                    break;
+                default:
+                    logger.LogWarning($"Unknown image:{file}");
+                    return null;
             }
 
-            logger.LogWarning($"Unknown image:{file}");
-            return "";
+            logger.LogInformation($"[Converterd] {file}");
+
+            return header + content;
+        }
+
+        string ConvertSvg(string file)
+        {
+            var doc = default(IHtmlDocument);
+            string ret = null;
+
+            using (var fs = new FileStream(file, FileMode.Open))
+            {
+                doc = parser.Parse(fs);
+            }
+
+            ret = doc.QuerySelector("svg").OuterHtml;
+
+            return ret;
         }
     }
 }

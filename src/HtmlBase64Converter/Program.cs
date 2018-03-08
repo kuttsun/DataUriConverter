@@ -27,7 +27,6 @@ namespace HtmlBase64Converter
 
             CommandLine(serviceProvider).Execute(args);
 
-            Console.WriteLine("完了しました");
             Console.ReadKey();
         }
 
