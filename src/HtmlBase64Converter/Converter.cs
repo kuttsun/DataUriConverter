@@ -103,6 +103,7 @@ namespace HtmlBase64Converter
             if (file.StartsWith("data:image"))
             {
                 ret = file;
+                logger.LogInformation($"[Skip] {file}");
             }
             else
             {
@@ -114,7 +115,7 @@ namespace HtmlBase64Converter
 
                 var bytes = File.ReadAllBytes(file);
                 ret = GetImageData(file) + base64.Encode(bytes);
-                logger.LogInformation($"[Complete] {file}");
+                logger.LogInformation($"[Converterd] {file}");
             }
 
             return m.Groups[1].Value + ret + m.Groups[3].Value;
